@@ -1,0 +1,12 @@
+{
+  "KPlugin": {
+    "Id": "bitwall-kwin",
+    "Name": "BitWall Wallpaper Manager",
+    "Description": "Keeps BitWall wallpaper window below all other windows",
+    "Version": "1.0.0",
+    "Authors": [{ "Name": "BitWall" }],
+    "License": "MIT"
+  },
+  "X-Plasma-API": "javascript",
+  "X-Plasma-MainScript": "code/main.js"
+}

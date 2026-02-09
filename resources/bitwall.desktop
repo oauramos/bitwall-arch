@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=BitWall
+GenericName=Animated Wallpaper
+Comment=Animated live wallpaper engine for KDE Plasma
+Exec=bitwall --ozone-platform=x11 --class=bitwall
+Icon=bitwall
+Type=Application
+Categories=Utility;Graphics;Settings;
+Keywords=wallpaper;animated;live;background;desktop;
+StartupNotify=false
+StartupWMClass=bitwall
+X-KDE-autostart-phase=2

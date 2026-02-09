@@ -1,0 +1,50 @@
+.background-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: #16213e;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  color: #e0e0e0;
+  font-family: inherit;
+}
+
+.background-card:hover {
+  background: #1a2747;
+  border-color: #444;
+}
+
+.background-card.selected {
+  border-color: #6c5ce7;
+  background: #1e2d5a;
+}
+
+.card-thumbnail {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #0a0a1a;
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-tech-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 0.65rem;
+  background: rgba(0,0,0,0.6);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #aaa;
+  text-transform: uppercase;
+}
+
+.card-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+}

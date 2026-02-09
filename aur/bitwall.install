@@ -1,0 +1,45 @@
+post_install() {
+    gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor 2>/dev/null || true
+    update-desktop-database -q /usr/share/applications 2>/dev/null || true
+    echo ""
+    echo "  BitWall installed!"
+    echo ""
+    echo "  Launch from your Application Launcher or run: bitwall"
+    echo "  KWin rules are configured automatically on each launch."
+    echo ""
+}
+
+post_upgrade() {
+    post_install
+}
+
+post_remove() {
+    gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor 2>/dev/null || true
+    update-desktop-database -q /usr/share/applications 2>/dev/null || true
+
+    # Clean up KWin rules
+    RULE_GROUP="bitwall-wallpaper"
+    CONFIG_FILE="kwinrulesrc"
+
+    if command -v kwriteconfig6 &>/dev/null; then
+        for key in Description wmclass wmclassmatch below belowrule \
+                   skiptaskbar skiptaskbarrule skippager skippagerrule \
+                   skipswitcher skipswitcherrule acceptfocus acceptfocusrule \
+                   noborder noborderrule; do
+            kwriteconfig6 --file "$CONFIG_FILE" --group "$RULE_GROUP" --key "$key" --delete 2>/dev/null || true
+        done
+
+        EXISTING_RULES=$(kreadconfig6 --file "$CONFIG_FILE" --group "General" --key "rules" 2>/dev/null || echo "")
+        if [ -n "$EXISTING_RULES" ]; then
+            NEW_RULES=$(echo "$EXISTING_RULES" | tr ',' '\n' | grep -v "$RULE_GROUP" | paste -sd ',' -)
+            RULE_COUNT=$(echo "$NEW_RULES" | tr ',' '\n' | grep -c '.' 2>/dev/null || echo "0")
+            kwriteconfig6 --file "$CONFIG_FILE" --group "General" --key "rules" "$NEW_RULES" 2>/dev/null || true
+            kwriteconfig6 --file "$CONFIG_FILE" --group "General" --key "count" "$RULE_COUNT" 2>/dev/null || true
+        fi
+
+        qdbus6 org.kde.KWin /KWin reconfigure 2>/dev/null || true
+    fi
+
+    # Clean up user config
+    rm -rf "${HOME}/.config/bitwall" 2>/dev/null || true
+}

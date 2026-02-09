@@ -1,0 +1,74 @@
+# Maintainer: oauramos
+pkgname=bitwall
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='Animated live wallpaper engine for KDE Plasma'
+arch=('x86_64')
+url='https://github.com/oauramos/bitwall'
+license=('MIT')
+depends=('gtk3' 'nss' 'libxss' 'alsa-lib')
+makedepends=('pnpm' 'nodejs>=18' 'npm')
+optdepends=(
+    'xdotool: fallback window lowering'
+    'wmctrl: fallback window lowering'
+)
+install=bitwall.install
+
+# For local builds: uses the local git repo
+# For AUR: change to your remote URL
+#   source=("git+https://github.com/oauramos/bitwall.git")
+source=("${pkgname}::git+file://${startdir}/..")
+sha256sums=('SKIP')
+
+build() {
+    cd "$srcdir/$pkgname"
+
+    # Install dependencies
+    pnpm install --frozen-lockfile
+
+    # Ensure electron binary is available (pnpm approve-builds workaround)
+    local electron_dir=$(find node_modules/.pnpm/electron@*/node_modules/electron -maxdepth 0 2>/dev/null | head -1)
+    if [ -n "$electron_dir" ] && [ ! -f "$electron_dir/dist/electron" ]; then
+        node "$electron_dir/install.js"
+    fi
+
+    # Build app
+    pnpm build
+
+    # Package with electron-builder (bundled electron, unpacked directory)
+    npx electron-builder --linux dir
+}
+
+package() {
+    cd "$srcdir/$pkgname"
+
+    # Install app to /opt
+    install -dm755 "$pkgdir/opt/$pkgname"
+    cp -a dist/linux-unpacked/* "$pkgdir/opt/$pkgname/"
+
+    # Launcher symlink
+    install -dm755 "$pkgdir/usr/bin"
+    ln -sf "/opt/$pkgname/$pkgname" "$pkgdir/usr/bin/$pkgname"
+
+    # Desktop entry (visible in Application Launcher)
+    install -Dm644 resources/bitwall.desktop \
+        "$pkgdir/usr/share/applications/bitwall.desktop"
+
+    # Autostart entry
+    install -dm755 "$pkgdir/etc/xdg/autostart"
+    ln -sf /usr/share/applications/bitwall.desktop \
+        "$pkgdir/etc/xdg/autostart/bitwall.desktop"
+
+    # Icon
+    install -Dm644 resources/icon.png \
+        "$pkgdir/usr/share/icons/hicolor/256x256/apps/bitwall.png"
+
+    # KWin script
+    install -Dm644 resources/kwin-script/metadata.json \
+        "$pkgdir/usr/share/kwin/scripts/bitwall/metadata.json"
+    install -Dm644 resources/kwin-script/contents/code/main.js \
+        "$pkgdir/usr/share/kwin/scripts/bitwall/contents/code/main.js"
+
+    # License
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

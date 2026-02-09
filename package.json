@@ -1,0 +1,40 @@
+{
+  "name": "bitwall",
+  "version": "1.0.0",
+  "description": "Animated wallpaper app for Linux KDE Plasma",
+  "main": "./out/main/index.js",
+  "author": "oauramos",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev -- --ozone-platform=x11 --class=bitwall",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package": "electron-builder --linux",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.0.6",
+    "@react-three/fiber": "^9.1.2",
+    "@react-three/postprocessing": "^3.0.4",
+    "gsap": "^3.12.7",
+    "ogl": "^1.0.11",
+    "postprocessing": "^6.36.7",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "three": "^0.175.0"
+  },
+  "devDependencies": {
+    "@electron-toolkit/preload": "^3.0.1",
+    "@electron-toolkit/utils": "^4.0.0",
+    "@types/node": "^22.14.1",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@types/three": "^0.175.0",
+    "electron": "^35.1.2",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^3.1.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.4",
+    "@vitejs/plugin-react": "^4.4.1"
+  }
+}

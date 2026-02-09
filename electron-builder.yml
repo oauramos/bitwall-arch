@@ -1,0 +1,23 @@
+appId: com.bitwall.app
+productName: BitWall
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - "!**/.vscode/*"
+  - "!src/*"
+  - "!electron/*"
+  - "!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}"
+linux:
+  target:
+    - target: AppImage
+      arch: x64
+    - target: pacman
+      arch: x64
+  icon: resources/icon.png
+  category: Utility
+  executableArgs:
+    - "--ozone-platform=x11"
+pacman:
+  depends:
+    - electron
