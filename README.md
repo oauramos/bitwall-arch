@@ -61,6 +61,10 @@ Aurora, Ballpit, Beams, Dither, Faulty Terminal, Galaxy, Grid Distortion, Grid M
 
 Background components vendored from [react-bits](https://github.com/DavidHDev/react-bits).
 
+## Disclaimer
+
+This entire project was built by a lazy motherf*cker who used [Claude Opus 4.6](https://claude.ai) to do it — because it's quicker and faster than spending 6 months doing it myself. For free.
+
 ## License
 
 MIT
