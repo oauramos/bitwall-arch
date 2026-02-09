@@ -15,8 +15,8 @@ export function createWallpaperWindow(config: BitwallConfig): BrowserWindow {
     y,
     width,
     height,
+    title: 'BitWall Wallpaper',
     frame: false,
-    focusable: false,
     skipTaskbar: true,
     resizable: false,
     movable: false,
@@ -27,7 +27,6 @@ export function createWallpaperWindow(config: BitwallConfig): BrowserWindow {
     hasShadow: false,
     transparent: false,
     backgroundColor: '#000000',
-    type: 'desktop',
     show: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -36,13 +35,20 @@ export function createWallpaperWindow(config: BitwallConfig): BrowserWindow {
     }
   })
 
-  wallpaperWindow.setAlwaysOnTop(false)
+  wallpaperWindow.setVisibleOnAllWorkspaces(true)
+  wallpaperWindow.setFocusable(false)
 
-  // Show window after ready, then lower it below all others
+  // Prevent the wallpaper from stealing focus
+  wallpaperWindow.on('focus', () => {
+    wallpaperWindow?.blur()
+  })
+
+  // Show window after ready, then apply KWin script for proper stacking
   wallpaperWindow.once('ready-to-show', () => {
     wallpaperWindow?.show()
-    // Give KWin a moment to apply rules, then force lower as fallback
-    setTimeout(() => lowerWallpaperWindow(), 500)
+    wallpaperWindow?.blur()
+    // Give KWin time to register the window, then load the KWin script
+    setTimeout(() => lowerWallpaperWindow(), 1000)
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {

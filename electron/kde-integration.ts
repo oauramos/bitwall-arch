@@ -1,87 +1,111 @@
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import { existsSync, mkdirSync, copyFileSync } from 'fs'
+import { join } from 'path'
+import { app } from 'electron'
 
 const execAsync = promisify(exec)
 
-async function kread(file: string, group: string, key: string): Promise<string> {
-  try {
-    const { stdout } = await execAsync(
-      `kreadconfig6 --file "${file}" --group "${group}" --key "${key}"`
-    )
-    return stdout.trim()
-  } catch {
-    return ''
-  }
-}
-
-async function kwrite(file: string, group: string, key: string, value: string): Promise<void> {
-  await execAsync(
-    `kwriteconfig6 --file "${file}" --group "${group}" --key "${key}" "${value}"`
-  ).catch(() => {})
-}
+let kwinScriptPath = ''
 
 export async function setupKdeIntegration(): Promise<void> {
   try {
-    const ruleGroup = 'bitwall-wallpaper'
-    const configFile = 'kwinrulesrc'
+    // Install the KWin script files
+    kwinScriptPath = await installKwinScript()
 
-    const rules: Record<string, string> = {
-      Description: 'BitWall Wallpaper',
-      wmclass: 'bitwall',
-      wmclassmatch: '2', // substring match
-      below: 'true',
-      belowrule: '2', // force
-      skiptaskbar: 'true',
-      skiptaskbarrule: '2',
-      skippager: 'true',
-      skippagerrule: '2',
-      skipswitcher: 'true',
-      skipswitcherrule: '2',
-      acceptfocus: 'false',
-      acceptfocusrule: '2',
-      noborder: 'true',
-      noborderrule: '2'
-    }
-
-    // Write rule properties
-    for (const [key, value] of Object.entries(rules)) {
-      await kwrite(configFile, ruleGroup, key, value)
-    }
-
-    // Read existing rules list from [General]
-    const existingRules = await kread(configFile, 'General', 'rules')
-
-    // Parse existing rules and ensure ours is included
-    const rulesList: string[] = existingRules
-      ? existingRules.split(',').map((r) => r.trim()).filter((r) => r.length > 0)
-      : []
-
-    if (!rulesList.includes(ruleGroup)) {
-      rulesList.push(ruleGroup)
-    }
-
-    // Write updated rules list and count (count is required by KWin)
-    await kwrite(configFile, 'General', 'rules', rulesList.join(','))
-    await kwrite(configFile, 'General', 'count', String(rulesList.length))
-
-    // Reload KWin to apply rules
-    await execAsync(
-      'qdbus6 org.kde.KWin /KWin reconfigure'
-    ).catch(() => {
-      return execAsync(
-        'dbus-send --type=method_call --dest=org.kde.KWin /KWin org.kde.KWin.reconfigure'
-      ).catch(() => {})
-    })
+    // Clean up legacy KWin rules
+    await removeLegacyKwinRules()
   } catch (err) {
     console.warn('KDE integration setup failed (non-fatal):', err)
   }
 }
 
-export function lowerWallpaperWindow(): void {
-  // Fallback: use xdotool to lower the window below all others
-  exec('xdotool search --class bitwall windowlower', (err) => {
-    if (err) {
-      exec('wmctrl -r bitwall -b add,below', () => {})
+async function installKwinScript(): Promise<string> {
+  const userScriptDir = join(
+    process.env.HOME || app.getPath('home'),
+    '.local/share/kwin/scripts/bitwall'
+  )
+  const codeDir = join(userScriptDir, 'contents/code')
+
+  let scriptSrcDir: string
+  if (app.isPackaged) {
+    scriptSrcDir = join(process.resourcesPath, 'kwin-script')
+  } else {
+    scriptSrcDir = join(app.getAppPath(), 'resources/kwin-script')
+  }
+
+  const metadataSrc = join(scriptSrcDir, 'metadata.json')
+  const mainJsSrc = join(scriptSrcDir, 'contents/code/main.js')
+  const mainJsDst = join(codeDir, 'main.js')
+
+  if (existsSync(metadataSrc) && existsSync(mainJsSrc)) {
+    mkdirSync(codeDir, { recursive: true })
+    copyFileSync(metadataSrc, join(userScriptDir, 'metadata.json'))
+    copyFileSync(mainJsSrc, mainJsDst)
+  }
+
+  return mainJsDst
+}
+
+async function removeLegacyKwinRules(): Promise<void> {
+  const configFile = 'kwinrulesrc'
+  const ruleGroup = 'bitwall-wallpaper'
+
+  await execAsync(
+    `kwriteconfig6 --file "${configFile}" --group "${ruleGroup}" --delete-group`
+  ).catch(() => {})
+
+  try {
+    const { stdout } = await execAsync(
+      `kreadconfig6 --file "${configFile}" --group "General" --key "rules"`
+    )
+    const existing = stdout.trim()
+    if (existing.includes(ruleGroup)) {
+      const rulesList = existing
+        .split(',')
+        .map((r) => r.trim())
+        .filter((r) => r.length > 0 && r !== ruleGroup)
+
+      if (rulesList.length > 0) {
+        await execAsync(
+          `kwriteconfig6 --file "${configFile}" --group "General" --key "rules" "${rulesList.join(',')}"`
+        ).catch(() => {})
+        await execAsync(
+          `kwriteconfig6 --file "${configFile}" --group "General" --key "count" "${rulesList.length}"`
+        ).catch(() => {})
+      } else {
+        await execAsync(
+          `kwriteconfig6 --file "${configFile}" --group "General" --key "rules" --delete`
+        ).catch(() => {})
+        await execAsync(
+          `kwriteconfig6 --file "${configFile}" --group "General" --key "count" --delete`
+        ).catch(() => {})
+      }
     }
-  })
+  } catch {
+    // No rules to clean
+  }
+}
+
+export function lowerWallpaperWindow(): void {
+  if (!kwinScriptPath || !existsSync(kwinScriptPath)) {
+    // Fallback: just lower the window via xdotool
+    exec('xdotool search --name "BitWall Wallpaper" windowlower', () => {})
+    return
+  }
+
+  // Load and run the KWin script directly via D-Bus
+  // The script sets skipTaskbar/skipPager/skipSwitcher on the wallpaper window
+  // but does NOT set keepBelow (which conflicts with type: 'desktop' causing layer=9)
+  const loadCmd = `qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.loadScript "${kwinScriptPath}" "bitwall-runtime"`
+  const startCmd = 'qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.start'
+
+  exec(
+    `qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.unloadScript "bitwall-runtime" 2>/dev/null; ${loadCmd} && ${startCmd}`,
+    (err) => {
+      if (err) {
+        exec('xdotool search --name "BitWall Wallpaper" windowlower', () => {})
+      }
+    }
+  )
 }

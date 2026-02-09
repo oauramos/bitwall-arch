@@ -1,6 +1,7 @@
 {
+  "KPackageStructure": "KWin/Script",
   "KPlugin": {
-    "Id": "bitwall-kwin",
+    "Id": "bitwall",
     "Name": "BitWall Wallpaper Manager",
     "Description": "Keeps BitWall wallpaper window below all other windows",
     "Version": "1.0.0",

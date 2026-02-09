@@ -1,11 +1,18 @@
 post_install() {
     gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor 2>/dev/null || true
     update-desktop-database -q /usr/share/applications 2>/dev/null || true
+
+    # Enable the KWin script
+    if command -v kwriteconfig6 &>/dev/null; then
+        kwriteconfig6 --file kwinscriptsrc --group "Script-bitwall" --key "Enabled" "true" 2>/dev/null || true
+        qdbus6 org.kde.KWin /KWin reconfigure 2>/dev/null || true
+    fi
+
     echo ""
     echo "  BitWall installed!"
     echo ""
     echo "  Launch from your Application Launcher or run: bitwall"
-    echo "  KWin rules are configured automatically on each launch."
+    echo "  KWin script is configured automatically for window management."
     echo ""
 }
 
@@ -17,29 +24,29 @@ post_remove() {
     gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor 2>/dev/null || true
     update-desktop-database -q /usr/share/applications 2>/dev/null || true
 
-    # Clean up KWin rules
-    RULE_GROUP="bitwall-wallpaper"
-    CONFIG_FILE="kwinrulesrc"
-
     if command -v kwriteconfig6 &>/dev/null; then
-        for key in Description wmclass wmclassmatch below belowrule \
-                   skiptaskbar skiptaskbarrule skippager skippagerrule \
-                   skipswitcher skipswitcherrule acceptfocus acceptfocusrule \
-                   noborder noborderrule; do
-            kwriteconfig6 --file "$CONFIG_FILE" --group "$RULE_GROUP" --key "$key" --delete 2>/dev/null || true
-        done
+        # Disable and clean up KWin script
+        kwriteconfig6 --file kwinscriptsrc --group "Script-bitwall" --key "Enabled" --delete 2>/dev/null || true
 
-        EXISTING_RULES=$(kreadconfig6 --file "$CONFIG_FILE" --group "General" --key "rules" 2>/dev/null || echo "")
-        if [ -n "$EXISTING_RULES" ]; then
-            NEW_RULES=$(echo "$EXISTING_RULES" | tr ',' '\n' | grep -v "$RULE_GROUP" | paste -sd ',' -)
-            RULE_COUNT=$(echo "$NEW_RULES" | tr ',' '\n' | grep -c '.' 2>/dev/null || echo "0")
-            kwriteconfig6 --file "$CONFIG_FILE" --group "General" --key "rules" "$NEW_RULES" 2>/dev/null || true
-            kwriteconfig6 --file "$CONFIG_FILE" --group "General" --key "count" "$RULE_COUNT" 2>/dev/null || true
+        # Clean up legacy KWin rules (if any)
+        kwriteconfig6 --file kwinrulesrc --group "bitwall-wallpaper" --delete-group 2>/dev/null || true
+        EXISTING_RULES=$(kreadconfig6 --file kwinrulesrc --group "General" --key "rules" 2>/dev/null || echo "")
+        if echo "$EXISTING_RULES" | grep -q "bitwall-wallpaper"; then
+            NEW_RULES=$(echo "$EXISTING_RULES" | tr ',' '\n' | grep -v "bitwall-wallpaper" | paste -sd ',' -)
+            if [ -n "$NEW_RULES" ]; then
+                RULE_COUNT=$(echo "$NEW_RULES" | tr ',' '\n' | grep -c '.' 2>/dev/null || echo "0")
+                kwriteconfig6 --file kwinrulesrc --group "General" --key "rules" "$NEW_RULES" 2>/dev/null || true
+                kwriteconfig6 --file kwinrulesrc --group "General" --key "count" "$RULE_COUNT" 2>/dev/null || true
+            else
+                kwriteconfig6 --file kwinrulesrc --group "General" --key "rules" --delete 2>/dev/null || true
+                kwriteconfig6 --file kwinrulesrc --group "General" --key "count" --delete 2>/dev/null || true
+            fi
         fi
 
         qdbus6 org.kde.KWin /KWin reconfigure 2>/dev/null || true
     fi
 
-    # Clean up user config
+    # Clean up user config and KWin script
     rm -rf "${HOME}/.config/bitwall" 2>/dev/null || true
+    rm -rf "${HOME}/.local/share/kwin/scripts/bitwall" 2>/dev/null || true
 }
